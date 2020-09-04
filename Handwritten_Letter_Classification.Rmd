@@ -1,0 +1,301 @@
+---
+title: "Handwritten Letter Classification"
+author: "Justin Farnsworth"
+date: "September 2, 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Summary
+
+In this project, the Keras and TensorFlow packages were used to implement a neural network model. A sequential model was used to identify grayscale images of handwritten letters. These images were converted to vectors of pixel values beforehand. The pixel values were pre-processed via binarization and pixels with low variability were omitted.
+
+After training, the model achieved an accuracy **over 98%**. All letters had a recall rate and precision rate of over 90%. Most of the letters obtained over 95% recall rate and some even achieved upwards 99%. Similarly, the precision rates were also very high as they were mostly over 97%.
+
+A brief analysis of the prevalence of the data showed that some letters appeared more often than others. For example, the letters O and S appeared the most, while I and F appeared the least. Despite the disparity, each letter had over 1,000 images.
+
+The data can be accessed here:
+<https://www.kaggle.com/ashishguptajiit/handwritten-az>
+
+
+# Loading The Data
+For this project, the following packages were used:
+
+```{r load_packages, message = FALSE, warning = FALSE}
+# Required packages
+if (!require(tidyverse)) { install.packages("tidyverse"); library(tidyverse) }
+if (!require(caret)) { install.packages("caret"); library(caret) }
+if (!require(matrixStats)) { install.packages("matrixStats"); library(matrixStats) }
+if (!require(keras)) { install.packages("keras"); library(keras) }
+if (!require(tensorflow)) { install.packages("keras"); library(keras) }
+if (!require(reticulate)) { install.packages("reticulate"); library(reticulate) }
+```
+
+Before continuing, the following lines of code were run in order to set up the Anaconda environment. This allowed us to use the Keras and TensorFlow packages. Note that `install_keras()` and `install_tensorflow()` may trigger a reset, which would prevent the rest of the code block to run. To address this, the lines were run one at a time. Conveniently, this only needed to be done only once.
+
+```{r setup_anaconda_environment, eval = FALSE}
+# Creates the Anaconda environment
+conda_create("Keras_TensorFlow")
+
+# Installs Keras in the Anaconda environment
+# NOTE: This may trigger a reset, preventing the rest of this code block from running
+use_condaenv("Keras_TensorFlow", required = TRUE)
+install_keras()
+
+# Installs TensorFlow in the Anaconda environment
+# NOTE: This may trigger a reset, preventing the rest of this code block from running
+use_condaenv("Keras_TensorFlow", required = TRUE)
+install_tensorflow()
+```
+
+After the Anaconda environment is set up, we connected to it using the following line of code.
+
+```{r connect_to_anaconda_environment}
+# Connect to the Anaconda environment
+use_condaenv("Keras_TensorFlow", required = TRUE)
+```
+
+Then we loaded the data and converted it into a matrix. The column names were dropped as well.
+
+```{r load_data, message = FALSE, warning = FALSE, results = "hide"}
+# Load the data
+# Source: https://www.kaggle.com/ashishguptajiit/handwritten-az
+data <- as.matrix(
+  read_csv(
+    unz("A-Z_Handwritten_Data.zip", "A-Z_Handwritten_Data.csv"), 
+    col_names = FALSE
+  )
+)
+colnames(data) <- NULL
+```
+
+There are `r nrow(data)` rows and `r ncol(data)` columns. The 1st column represents the letters A-Z using the numbers 0-25 respectively, while the remaining columns represent the pixel values ranging from 0 to 255. The higher the value, the darker the pixel.
+
+The following table shows the prevalence of each letter in the dataset. We observed that the most prevalent letters are O and S, while the least prevalent are I and F.
+
+```{r count_letters, echo = FALSE}
+# Count the frequency of each letter
+tibble(Number = data[,1], Letter = sapply(as.raw(data[,1] + 65), rawToChar)) %>% 
+  group_by(Number, Letter) %>% 
+  summarize(Total = n()) %>% 
+  ungroup() %>% 
+  print(n = Inf)
+```
+
+
+# Pre-Processing The Data
+The pixel values ranged from 0 to 255, where 0 represented a white pixel and 255 represented a black pixel. The values in between were generally gray pixels. To eliminate grey smudges, the values were binarized. All values closer to 0 were converted to 0 and vice versa. We also extracted the labels, which was denoted `y`, from the pixel values, which was denoted `x`.
+
+```{r pre-process_data_1}
+# Separate the features (x) from the labels (y)
+# Binarize x by converting small numbers to 0 and large numbers to 1
+x <- (data[,2:785] >= 255/2) * 1
+y <- data[,1]
+```
+
+Then we calculated the standard deviation for each column in `x` and plotted their variabilities, allowing us to see spaces where the letters occupied the most as well as where the threshold should be.
+
+```{r plot_pixel_variabilities_before_cleanup, fig.align = "center"}
+# Save the column SDs for faster computation
+SDs <- colSds(x)
+
+# Plot the frequency of SDs
+qplot(SDs, bins = 256, color = I("black"))
+
+# Plot the pixels and their variabilities
+image(1:28, 1:28, matrix(SDs, 28, 28))
+```
+
+As expected, the most variability was found to be in the center. Conveniently, the area is comprised of a 20x20 region directly in the center of the image.
+
+To drop the columns with little to no variability (the area outside the 20x20 region in the center), we established the threshold to be 0.05.
+
+```{r pre-procress_data_2}
+# Keep columns with higher variability
+x <- x[,SDs >= 0.05]
+```
+
+After pre-processing, we observed that there are `r ncol(x)` pixels remaining, which is the correct area of a 20x20 image.
+
+```{r plot_pixel_variabilities_after_cleanup, fig.align = "center"}
+# Show the variabilities of the remaining columns
+image(1:20, 1:20, matrix(colSds(x), 20, 20))
+```
+
+We can observe the images of the handwritten letters after pre-processing.
+
+```{r plot_pre-processed_images, echo = FALSE, fig.align = "center"}
+# Show several images after pre-processing
+image(1:20, 1:20, matrix(x[1, 400:1], 20, 20))
+image(1:20, 1:20, matrix(x[50000, 400:1], 20, 20))
+image(1:20, 1:20, matrix(x[100000, 400:1], 20, 20))
+image(1:20, 1:20, matrix(x[200000, 400:1], 20, 20))
+image(1:20, 1:20, matrix(x[300000, 400:1], 20, 20))
+image(1:20, 1:20, matrix(x[350000, 400:1], 20, 20))
+```
+
+
+# Training & Test Sets
+For this project, we split the data into a training set and a test set. The training set consisted of 80% of the data while the test set consisted of the remaining 20%.
+
+```{r generate_train_and_test_sets, message = FALSE, warning = FALSE}
+# Split the data into a training set (80%) and a test set (20%)
+set.seed(2)
+test_index <- createDataPartition(y, p = 0.2, list = FALSE)
+
+train_x <- x[-test_index,]
+train_y <- y[-test_index] %>% to_categorical(26)
+
+test_x <- x[test_index,]
+test_y <- y[test_index] %>% to_categorical(26)
+```
+
+After splitting the data, we observed that there were `r nrow(train_x)` rows in the training set and `r nrow(test_x)` rows in the test set.
+
+
+# Sequential Model
+The model that was used for classification was a sequential model. The following block of code generates the model.
+
+```{r generate_model, message = FALSE, warning = FALSE}
+# Generate the model
+model <- keras_model_sequential() %>% 
+  layer_dense(units = 512, activation = "relu", input_shape = c(ncol(x))) %>% 
+  layer_dropout(rate = 0.4) %>% 
+  layer_dense(units = 256, activation = "relu") %>% 
+  layer_dropout(rate = 0.3) %>% 
+  layer_dense(units = 26, activation = "softmax")
+
+# View the model
+summary(model)
+```
+
+Since there were 26 categorical outcomes, categorical cross-entropy was as our loss function. We also used accuracy to measure correctness.
+
+```{r compile_model}
+# Compile the model
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(),
+  metrics = c("accuracy")
+)
+```
+
+Once the model was set up, we began training our data. Only 15 epochs were used when fitting the model.
+
+```{r fit_model}
+# Fit the model
+fit <- model %>% fit(
+  train_x, 
+  train_y, 
+  epochs = 15, 
+  batch_size = 256
+)
+```
+
+The following plot shows the results from fitting the model.
+
+```{r plot_fit_results, message = FALSE, fig.align = "center"}
+# Plot the results from fitting the model
+plot(fit)
+```
+
+After evaluating the model, we saw that the model is able to correctly identify the letter over 98% of the time!
+
+```{r evalutate}
+# Evaluate the accuracy using the test cases
+model %>% evaluate(test_x, test_y)
+```
+
+In the following section, we saved the predictions in order to further analyze the results.
+
+```{r predict}
+# Predict the results
+predictions <- model %>% predict_classes(test_x)
+```
+
+
+# Results
+The model was able to achieve an accuracy over 98%, as shown below.
+
+```{r compute_accuracy}
+# Combine the observations and the predictions into one table
+results <- tibble(Prediction = predictions, Observation = y[test_index])
+
+# Compute the accuracy
+mean(results$Prediction == results$Observation)
+```
+
+When anaylzing the recalls for each letter, we managed to achieve over 90% for all the letters. Most of the letters were correctly identified 95% of the time, however some letters were correctly predicted over 99% of the time!
+
+```{r show_recalls_by_letter, echo = FALSE}
+# Show the recalls by letter
+results %>% 
+  group_by(Observation) %>% 
+  summarize(
+    Letter = rawToChar(as.raw(first(Observation) + 65)), 
+    Count = n(), 
+    Recall = mean(Prediction == Observation)
+  ) %>% 
+  ungroup() %>% 
+  print(n = Inf)
+```
+
+The following graph visualizes the table directly above.
+
+```{r plot_recalls_by_letter, echo = FALSE, fig.align = "center"}
+# Plot the recalls by letter
+results %>% 
+  group_by(Observation) %>% 
+  summarize(
+    Letter = rawToChar(as.raw(first(Observation) + 65)), 
+    Count = n(), 
+    Recall = mean(Prediction == Observation)
+  ) %>% 
+  ungroup() %>% 
+  ggplot(aes(Letter, Recall)) + 
+  geom_bar(aes(fill = Letter), show.legend = FALSE, stat = "identity") + 
+  ggtitle("Model Recall By Letter") + 
+  scale_y_continuous(breaks = seq(0, 1, 0.1), labels = seq(0, 1, 0.1))
+```
+
+When analyzing the precision of each letter, we observed that all of them were also well over 90%. Most of them were over 97%!
+
+```{r show_precisions_by_letter, echo = FALSE}
+# Show the precisions by letter
+results %>% 
+  group_by(Prediction) %>% 
+  summarize(
+    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
+    Count = n(), 
+    Precision = mean(Prediction == Observation)
+  ) %>% 
+  ungroup() %>% 
+  print(n = Inf)
+```
+
+The following graph visualizes the table directly above.
+
+```{r plot_precisions_by_letter, echo = FALSE, fig.align = "center"}
+# Plot the precisions by letter
+results %>% 
+  group_by(Prediction) %>% 
+  summarize(
+    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
+    Count = n(), 
+    Precision = mean(Prediction == Observation)
+  ) %>% 
+  ungroup() %>% 
+  ggplot(aes(Letter, Precision)) + 
+  geom_bar(aes(fill = Letter), show.legend = FALSE, stat = "identity") + 
+  ggtitle("Model Precision By Letter") + 
+  scale_y_continuous(breaks = seq(0, 1, 0.1), labels = seq(0, 1, 0.1))
+```
+
+
+# Conclusion
+Using the sequential model and binarization, we were able to correctly identify over 98% of the letters. The accuracies by letter were high, yet fairly balanced. None of the letters had a recall rate or precision rate under 90%.
+
+A limitation that occurred was the varying prevalences of the letters. Some letters occurred significantly more than others, giving the model more data for that letter than others. Meanwhile, other letters didn't occur as often, meaning the model had a limited amount of data for that letter. Despite this, the model performed fairly well.
