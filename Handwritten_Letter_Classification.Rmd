@@ -233,9 +233,9 @@ When anaylzing the recalls for each letter, we managed to achieve over 90% for a
 ```{r show_recalls_by_letter, echo = FALSE}
 # Show the recalls by letter
 results %>% 
-  group_by(Observation) %>% 
+  group_by(Prediction) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Observation) + 65)), 
+    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
     Count = n(), 
     Recall = mean(Prediction == Observation)
   ) %>% 
@@ -248,9 +248,9 @@ The following graph visualizes the table directly above.
 ```{r plot_recalls_by_letter, echo = FALSE, fig.align = "center"}
 # Plot the recalls by letter
 results %>% 
-  group_by(Observation) %>% 
+  group_by(Prediction) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Observation) + 65)), 
+    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
     Count = n(), 
     Recall = mean(Prediction == Observation)
   ) %>% 
@@ -266,9 +266,9 @@ When analyzing the precision of each letter, we observed that all of them were a
 ```{r show_precisions_by_letter, echo = FALSE}
 # Show the precisions by letter
 results %>% 
-  group_by(Prediction) %>% 
+  group_by(Observation) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
+    Letter = rawToChar(as.raw(first(Observation) + 65)), 
     Count = n(), 
     Precision = mean(Prediction == Observation)
   ) %>% 
@@ -281,9 +281,9 @@ The following graph visualizes the table directly above.
 ```{r plot_precisions_by_letter, echo = FALSE, fig.align = "center"}
 # Plot the precisions by letter
 results %>% 
-  group_by(Prediction) %>% 
+  group_by(Observation) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
+    Letter = rawToChar(as.raw(first(Observation) + 65)), 
     Count = n(), 
     Precision = mean(Prediction == Observation)
   ) %>% 

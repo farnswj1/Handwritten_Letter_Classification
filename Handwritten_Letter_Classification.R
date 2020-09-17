@@ -145,9 +145,9 @@ mean(results$Prediction == results$Observation)
 
 # Show the recalls by letter
 results %>% 
-  group_by(Observation) %>% 
+  group_by(Prediction) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Observation) + 65)), 
+    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
     Count = n(), 
     Recall = mean(Prediction == Observation)
   ) %>% 
@@ -156,9 +156,9 @@ results %>%
 
 # Plot the recalls by letter
 results %>% 
-  group_by(Observation) %>% 
+  group_by(Prediction) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Observation) + 65)), 
+    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
     Count = n(), 
     Recall = mean(Prediction == Observation)
   ) %>% 
@@ -170,9 +170,9 @@ results %>%
 
 # Show the precisions by letter
 results %>% 
-  group_by(Prediction) %>% 
+  group_by(Observation) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
+    Letter = rawToChar(as.raw(first(Observation) + 65)), 
     Count = n(), 
     Precision = mean(Prediction == Observation)
   ) %>% 
@@ -181,9 +181,9 @@ results %>%
 
 # Plot the precisions by letter
 results %>% 
-  group_by(Prediction) %>% 
+  group_by(Observation) %>% 
   summarize(
-    Letter = rawToChar(as.raw(first(Prediction) + 65)), 
+    Letter = rawToChar(as.raw(first(Observation) + 65)), 
     Count = n(), 
     Precision = mean(Prediction == Observation)
   ) %>% 
