@@ -228,7 +228,7 @@ results <- tibble(Prediction = predictions, Observation = y[test_index])
 mean(results$Prediction == results$Observation)
 ```
 
-When anaylzing the recalls for each letter, we managed to achieve over 90% for all the letters. Most of the letters were correctly identified 95% of the time, however some letters were correctly predicted over 99% of the time!
+When analyzing the recall rates of each letter, we observed that all of them were also well over 90%. Most of them were over 97%!
 
 ```{r show_recalls_by_letter, echo = FALSE}
 # Show the recalls by letter
@@ -261,7 +261,7 @@ results %>%
   scale_y_continuous(breaks = seq(0, 1, 0.1), labels = seq(0, 1, 0.1))
 ```
 
-When analyzing the precision of each letter, we observed that all of them were also well over 90%. Most of them were over 97%!
+When analyzing the precision rates for each letter, we managed to achieve over 90% for all the letters. Most of the letters were correctly identified 95% of the time, however some letters were correctly predicted over 99% of the time!
 
 ```{r show_precisions_by_letter, echo = FALSE}
 # Show the precisions by letter
